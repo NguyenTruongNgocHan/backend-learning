@@ -1,35 +1,27 @@
--- CreateEnum
-CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'BANNED', 'PENDING');
-
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
-    "status" "UserStatus" NOT NULL DEFAULT 'PENDING',
+    "passwordHash" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "bannedUntil" TIMESTAMP(3),
-    "settings" JSONB,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Profile" (
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "displayName" TEXT,
     "avatarUrl" TEXT,
     "bio" TEXT,
-    "dateOfBirth" TIMESTAMP(3),
-    "gender" TEXT,
-    "locale" TEXT,
-    "countryCode" TEXT,
-    "star" INTEGER DEFAULT 0,
-    "level" INTEGER DEFAULT 1,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "star" INTEGER NOT NULL DEFAULT 0,
+    "level" INTEGER NOT NULL DEFAULT 1,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Profile_pkey" PRIMARY KEY ("userId")
+    CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -43,12 +35,12 @@ CREATE TABLE "Role" (
 
 -- CreateTable
 CREATE TABLE "UserRole" (
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "roleId" TEXT NOT NULL,
     "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "grantedBy" TEXT,
 
-    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("userId","roleId")
+    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -57,7 +49,7 @@ CREATE TABLE "Session" (
     "userId" TEXT NOT NULL,
     "deviceInfo" TEXT,
     "ipAddress" TEXT,
-    "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "revokedAt" TIMESTAMP(3),
 
@@ -68,13 +60,10 @@ CREATE TABLE "Session" (
 CREATE TABLE "RefreshToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "sessionId" TEXT NOT NULL,
-    "tokenHash" TEXT NOT NULL,
-    "familyId" TEXT NOT NULL,
-    "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "token" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "revokedAt" TIMESTAMP(3),
-    "replacedBy" TEXT,
 
     CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
 );
@@ -83,9 +72,10 @@ CREATE TABLE "RefreshToken" (
 CREATE TABLE "EmailVerificationToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "tokenHash" TEXT NOT NULL,
+    "otpHash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
-    "usedAt" TIMESTAMP(3),
+    "consumedAt" TIMESTAMP(3),
 
     CONSTRAINT "EmailVerificationToken_pkey" PRIMARY KEY ("id")
 );
@@ -95,23 +85,40 @@ CREATE TABLE "PasswordResetToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "tokenHash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
-    "usedAt" TIMESTAMP(3),
+    "consumedAt" TIMESTAMP(3),
 
     CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OAuthAccount" (
+    "id" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accessToken" TEXT,
+    "refreshToken" TEXT,
+    "expiresAt" TIMESTAMP(3),
+
+    CONSTRAINT "OAuthAccount_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Profile_userId_key" ON "Profile"("userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 
 -- CreateIndex
-CREATE INDEX "Session_userId_expiresAt_idx" ON "Session"("userId", "expiresAt");
+CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
 
 -- CreateIndex
-CREATE INDEX "RefreshToken_userId_sessionId_expiresAt_idx" ON "RefreshToken"("userId", "sessionId", "expiresAt");
+CREATE UNIQUE INDEX "OAuthAccount_provider_providerId_key" ON "OAuthAccount"("provider", "providerId");
 
 -- AddForeignKey
 ALTER TABLE "Profile" ADD CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -129,10 +136,10 @@ ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId"
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "EmailVerificationToken" ADD CONSTRAINT "EmailVerificationToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthAccount" ADD CONSTRAINT "OAuthAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

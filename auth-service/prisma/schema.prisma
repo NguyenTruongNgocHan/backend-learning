@@ -5,115 +5,108 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  relationMode = "foreignKeys"
 }
 
 model User {
-  id               String     @id @default(uuid())
-  email            String     @unique
-  passwordHash     String
-  status           UserStatus @default(PENDING)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  bannedUntil      DateTime?
-  settings         Json?
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  status       String   @default("PENDING") // PENDING | ACTIVE | BANNED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  profile          Profile?
-  roles            UserRole[]
-  sessions         Session[]
-  refreshTokens    RefreshToken[]
-  emailTokens      EmailVerificationToken[]
-  resetTokens      PasswordResetToken[]
-}
-
-enum UserStatus {
-  ACTIVE
-  BANNED
-  PENDING
+  profile       Profile?
+  roles         UserRole[]
+  sessions      Session[]
+  refreshTokens RefreshToken[]
+  emailTokens   EmailVerificationToken[]
+  resetTokens   PasswordResetToken[]
+  OAuthAccount  OAuthAccount[]
 }
 
 model Profile {
-  userId       String  @id
-  displayName  String?
-  avatarUrl    String?
-  bio          String?
-  dateOfBirth  DateTime?
-  gender       String?
-  locale       String?
-  countryCode  String?
-  star         Int?     @default(0)
-  level        Int?     @default(1)
-  updatedAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+  star        Int      @default(0)
+  level       Int      @default(1)
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
 }
 
 model Role {
-  id          String  @id @default(uuid())
-  name        String  @unique
+  id          String     @id @default(uuid())
+  name        String     @unique
   description String?
   users       UserRole[]
 }
 
 model UserRole {
+  id        String   @id @default(uuid())
   userId    String
   roleId    String
   grantedAt DateTime @default(now())
-  grantedBy String?
 
   user User @relation(fields: [userId], references: [id])
   role Role @relation(fields: [roleId], references: [id])
-
-  @@id([userId, roleId])
 }
 
 model Session {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
   deviceInfo String?
   ipAddress  String?
-  issuedAt   DateTime @default(now())
+  createdAt  DateTime  @default(now())
   expiresAt  DateTime
   revokedAt  DateTime?
 
   user User @relation(fields: [userId], references: [id])
-  refreshTokens RefreshToken[]
-  @@index([userId, expiresAt])
 }
 
 model RefreshToken {
-  id         String   @id @default(uuid())
-  userId     String
-  sessionId  String
-  tokenHash  String
-  familyId   String
-  issuedAt   DateTime @default(now())
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  replacedBy String?
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
 
-  user    User    @relation(fields: [userId], references: [id])
-  session Session @relation(fields: [sessionId], references: [id])
-
-  @@index([userId, sessionId, expiresAt])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(uuid())
-  userId    String
-  tokenHash String
-  expiresAt DateTime
-  usedAt    DateTime?
+  id         String   @id @default(uuid())
+  userId     String
+  otpHash    String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
 
   user User @relation(fields: [userId], references: [id])
 }
 
-model PasswordResetToken {
-  id        String   @id @default(uuid())
-  userId    String
-  tokenHash String
-  expiresAt DateTime
-  usedAt    DateTime?
+model OAuthAccount {
+  id           String    @id @default(uuid())
+  provider     String // 'google' | 'facebook'
+  providerId   String // UID từ OAuth
+  userId       String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
 
   user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerId])
 }
