@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DMThread {
+  id         String    @id @default(uuid())
+  kind       DMKind    @default(ONE_TO_ONE)
+  /// Unique để chống tạo trùng 1–1: LEAST(u1,u2)+'_'+GREATEST(u1,u2)
+  threadKey  String?   @unique
+  createdAt  DateTime  @default(now())
+
+  participants DMParticipant[]
+  messages     DMMessage[]
+}
+
+enum DMKind {
+  ONE_TO_ONE
+  GROUP
+}
+
+model DMParticipant {
+  threadId   String
+  userId     String
+  joinedAt   DateTime  @default(now())
+  leftAt     DateTime?
+  mutedUntil DateTime?
+  lastReadId String?
+
+  thread     DMThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+  @@index([userId])
+}
+
+model DMMessage {
+  id         String     @id @default(uuid())
+  threadId   String
+  senderId   String
+  content    String?
+  kind       DMMsgKind  @default(TEXT) // TEXT|IMAGE|FILE|SYSTEM
+  attachments Json?
+  replyToId  String?
+  editedAt   DateTime?
+  deletedAt  DateTime?
+  createdAt  DateTime   @default(now())
+
+  thread     DMThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+enum DMMsgKind {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
